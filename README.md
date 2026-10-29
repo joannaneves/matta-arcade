@@ -10,12 +10,13 @@ O jogo usa o retrato e a folha de emotes enviados pelo criador. A trilha “Ela 
 
 - **WASD** ou **setas:** mover o personagem.
 - **Celular:** use os botões direcionais na barra abaixo do jogo.
+- Explore o mapa verde contínuo: a câmera acompanha o Matta e não há bordas para bloquear o caminho.
 - Mova o personagem com **WASD**, **setas** ou os botões direcionais no celular.
 - Os ataques automáticos miram o inimigo mais próximo.
 - Inimigos derrubados deixam cristais de XP. Cada nível oferece três melhorias para escolher.
 - Chefes aparecem periodicamente; sobreviva às ondas e tente bater seu recorde de tempo e abates.
 
-Os emotes aparecem como inimigos e cristais de experiência. A foto do Matta vira o personagem jogável. O botão Compartilhar usa a função nativa do dispositivo ou copia o link.
+Os emotes aparecem como inimigos e cristais de experiência. A foto do Matta vira o personagem jogável. O cenário tem grama, trilhas de pedra, trechos de rio, arbustos e rochas, inspirado em mapas de MOBA. O botão Compartilhar usa a função nativa do dispositivo ou copia o link.
 
 ## Publicação
 

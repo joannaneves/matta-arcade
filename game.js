@@ -20,6 +20,7 @@
   let width = 800;
   let height = 500;
   let pixelRatio = 1;
+  const camera = { x: -400, y: -290 };
   let frame = 0;
   let lastFrame = 0;
   let hudTimer = 0;
@@ -40,7 +41,7 @@
   let particles = [];
   const keys = new Set();
   const player = {
-    x: 400, y: 300, radius: 23, speed: 225, health: 5, maxHealth: 5,
+    x: 0, y: 0, radius: 23, speed: 225, health: 5, maxHealth: 5,
     invulnerable: 0, damage: 1, cooldown: 0.68, shotTimer: 0.2,
     projectileSpeed: 460, projectileCount: 1, pickupRadius: 43,
   };
@@ -64,8 +65,8 @@
     canvas.height = Math.floor(height * pixelRatio);
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     if (!running) {
-      player.x = width / 2;
-      player.y = height * 0.58;
+      camera.x = player.x - width / 2;
+      camera.y = player.y - height * 0.58;
       draw(performance.now(), 0);
     }
   }
@@ -135,8 +136,10 @@
     shots = [];
     gems = [];
     particles = [];
-    player.x = width / 2;
-    player.y = height * 0.58;
+    player.x = 0;
+    player.y = 0;
+    camera.x = player.x - width / 2;
+    camera.y = player.y - height * 0.58;
     player.speed = 225;
     player.health = 5;
     player.maxHealth = 5;
@@ -185,8 +188,8 @@
     if (!boss && enemies.length >= 85) return;
     const side = Math.floor(Math.random() * 4);
     const margin = 20;
-    const x = side === 0 ? margin : side === 1 ? width - margin : margin + Math.random() * (width - margin * 2);
-    const y = side === 2 ? margin : side === 3 ? height - margin : margin + Math.random() * (height - margin * 2);
+    const x = camera.x + (side === 0 ? margin : side === 1 ? width - margin : margin + Math.random() * (width - margin * 2));
+    const y = camera.y + (side === 2 ? margin : side === 3 ? height - margin : margin + Math.random() * (height - margin * 2));
     const currentWave = Math.floor(runTime / 45) + 1;
     const size = boss ? 32 : 17 + Math.random() * 4;
     enemies.push({
@@ -199,6 +202,19 @@
 
   function dropGem(enemy) {
     gems.push({ x: enemy.x, y: enemy.y, value: enemy.boss ? 7 : 1, size: enemy.boss ? 7 : 4.5, phase: Math.random() * Math.PI * 2 });
+  }
+
+  function updateCamera() {
+    const screenX = player.x - camera.x;
+    const screenY = player.y - camera.y;
+    const left = width * 0.28;
+    const right = width * 0.72;
+    const top = height * 0.27;
+    const bottom = height * 0.73;
+    if (screenX < left) camera.x = player.x - left;
+    else if (screenX > right) camera.x = player.x - right;
+    if (screenY < top) camera.y = player.y - top;
+    else if (screenY > bottom) camera.y = player.y - bottom;
   }
 
   function levelUp() {
@@ -291,8 +307,9 @@
     const moveX = (movingRight ? 1 : 0) - (movingLeft ? 1 : 0);
     const moveY = (movingDown ? 1 : 0) - (movingUp ? 1 : 0);
     const magnitude = Math.hypot(moveX, moveY) || 1;
-    player.x = Math.max(player.radius + 4, Math.min(width - player.radius - 4, player.x + (moveX / magnitude) * player.speed * dt));
-    player.y = Math.max(player.radius + 38, Math.min(height - player.radius - 18, player.y + (moveY / magnitude) * player.speed * dt));
+    player.x += (moveX / magnitude) * player.speed * dt;
+    player.y += (moveY / magnitude) * player.speed * dt;
+    updateCamera();
     player.invulnerable = Math.max(0, player.invulnerable - dt);
 
     spawnTimer -= dt;
@@ -345,7 +362,7 @@
         }
       }
     }
-    shots = shots.filter((shot) => shot.life > 0 && shot.x > -25 && shot.x < width + 25 && shot.y > -25 && shot.y < height + 25);
+    shots = shots.filter((shot) => shot.life > 0 && Math.hypot(shot.x - player.x, shot.y - player.y) < Math.max(width, height) * 1.5);
     enemies = enemies.filter((enemy) => enemy.hp > 0);
 
     for (const gem of gems) {
@@ -369,7 +386,8 @@
         }
       }
     }
-    gems = gems.filter((gem) => !gem.collected);
+    gems = gems.filter((gem) => !gem.collected && Math.hypot(gem.x - player.x, gem.y - player.y) < Math.max(width, height) * 2.5);
+    enemies = enemies.filter((enemy) => Math.hypot(enemy.x - player.x, enemy.y - player.y) < Math.max(width, height) * 2.5);
 
     for (const particle of particles) {
       particle.x += particle.vx * dt;
@@ -406,28 +424,144 @@
     ctx.restore();
   }
 
+  function randomFor(seed) {
+    let value = seed >>> 0;
+    return () => {
+      value = (value * 1664525 + 1013904223) >>> 0;
+      return value / 4294967296;
+    };
+  }
+
+  function drawTree(x, y, radius) {
+    ctx.save();
+    ctx.fillStyle = '#10271c70';
+    ctx.beginPath(); ctx.ellipse(x + 5, y + radius * 0.6, radius * 1.02, radius * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#675b3b';
+    ctx.fillRect(x - radius * 0.17, y, radius * 0.34, radius * 0.8);
+    for (const [dx, dy, scale, color] of [
+      [-0.38, 0.05, 0.63, '#245034'], [0.22, -0.18, 0.72, '#2d603b'],
+      [-0.04, -0.42, 0.75, '#397348'], [0.38, 0.25, 0.48, '#397348'],
+    ]) {
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(x + dx * radius, y + dy * radius, radius * scale, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#83a95c70';
+    ctx.beginPath(); ctx.arc(x - radius * 0.2, y - radius * 0.52, radius * 0.17, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBrush(x, y, radius) {
+    ctx.save();
+    ctx.fillStyle = '#183f2b';
+    ctx.beginPath(); ctx.ellipse(x, y, radius * 1.35, radius * 0.8, -0.18, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 7; i += 1) {
+      const angle = (i / 7) * Math.PI * 2;
+      const leafX = x + Math.cos(angle) * radius * 0.6;
+      const leafY = y + Math.sin(angle) * radius * 0.42;
+      ctx.fillStyle = i % 2 ? '#316943' : '#3b7548';
+      ctx.beginPath(); ctx.ellipse(leafX, leafY, radius * 0.42, radius * 0.3, angle, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawStone(x, y, size, seed) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(seed * Math.PI * 2);
+    ctx.fillStyle = '#1a3c2d';
+    ctx.beginPath(); ctx.ellipse(2, size * 0.42, size * 1.05, size * 0.66, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7d8c63';
+    ctx.beginPath(); ctx.moveTo(-size, size * 0.4); ctx.lineTo(-size * 0.72, -size * 0.38); ctx.lineTo(-size * 0.1, -size * 0.8); ctx.lineTo(size * 0.82, -size * 0.27); ctx.lineTo(size, size * 0.44); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#a0a87a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-size * 0.55, size * 0.04); ctx.lineTo(-size * 0.15, -size * 0.45); ctx.lineTo(size * 0.5, -size * 0.15); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTerrain() {
+    const tileSize = 300;
+    const left = Math.floor(camera.x / tileSize) - 1;
+    const right = Math.ceil((camera.x + width) / tileSize) + 1;
+    const top = Math.floor(camera.y / tileSize) - 1;
+    const bottom = Math.ceil((camera.y + height) / tileSize) + 1;
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    ctx.fillStyle = '#2b6138';
+    ctx.fillRect(camera.x, camera.y, width, height);
+
+    for (let tileY = top; tileY <= bottom; tileY += 1) {
+      for (let tileX = left; tileX <= right; tileX += 1) {
+        const seed = (tileX * 92837111) ^ (tileY * 689287499);
+        const random = randomFor(seed);
+        const originX = tileX * tileSize;
+        const originY = tileY * tileSize;
+        ctx.fillStyle = random() > 0.5 ? '#4d79402c' : '#183f2a20';
+        ctx.beginPath();
+        ctx.ellipse(originX + random() * tileSize, originY + random() * tileSize, 65 + random() * 85, 36 + random() * 48, random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+        for (let tuft = 0; tuft < 12; tuft += 1) {
+          const x = originX + random() * tileSize;
+          const y = originY + random() * tileSize;
+          ctx.strokeStyle = tuft % 2 ? '#80a65258' : '#bfd07a36';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(x, y + 3); ctx.lineTo(x + 2, y - 3); ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + 4, y - 1); ctx.stroke();
+        }
+        for (let tree = 0; tree < 2; tree += 1) {
+          drawTree(originX + 28 + random() * (tileSize - 56), originY + 28 + random() * (tileSize - 56), 13 + random() * 9);
+        }
+        if (random() > 0.33) drawBrush(originX + 35 + random() * (tileSize - 70), originY + 35 + random() * (tileSize - 70), 18 + random() * 12);
+        if (random() > 0.58) drawStone(originX + 35 + random() * (tileSize - 70), originY + 35 + random() * (tileSize - 70), 11 + random() * 10, random());
+      }
+    }
+
+    // A worn stone lane meanders across the woodland like a MOBA map route.
+    const laneStep = 900;
+    const firstLane = Math.floor((camera.y - camera.x - width) / laneStep) - 1;
+    const lastLane = Math.ceil((camera.y + height - camera.x) / laneStep) + 1;
+    for (let lane = firstLane; lane <= lastLane; lane += 1) {
+      const offset = lane * laneStep;
+      const startX = camera.x - 220;
+      const endX = camera.x + width + 220;
+      ctx.beginPath();
+      for (let x = startX; x <= endX; x += 24) {
+        const y = x + offset + Math.sin(x * 0.003 + lane) * 48 + Math.sin(x * 0.006 - lane) * 15;
+        if (x === startX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#183c2f'; ctx.lineWidth = 78; ctx.stroke();
+      ctx.strokeStyle = '#706f4c'; ctx.lineWidth = 67; ctx.stroke();
+      ctx.strokeStyle = '#9a9163'; ctx.lineWidth = 50; ctx.stroke();
+      ctx.strokeStyle = '#c2b47a55'; ctx.lineWidth = 2; ctx.setLineDash([4, 16]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // A blue-green river and stone banks appear in some map sectors.
+    const riverStep = 1700;
+    const minRiver = camera.y - (camera.x + width) * 0.62 - 180;
+    const maxRiver = camera.y + height - (camera.x - 180) * 0.62 + 180;
+    for (let offset = Math.floor(minRiver / riverStep) * riverStep; offset <= maxRiver; offset += riverStep) {
+      const startX = camera.x - 180;
+      const endX = camera.x + width + 180;
+      ctx.beginPath();
+      for (let x = startX; x <= endX; x += 28) {
+        const y = -x * 0.62 + offset + Math.sin(x * 0.002 + offset) * 55;
+        if (x === startX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#183e386b'; ctx.lineWidth = 78; ctx.stroke();
+      ctx.strokeStyle = '#367a696e'; ctx.lineWidth = 62; ctx.stroke();
+      ctx.strokeStyle = '#78a9825e'; ctx.lineWidth = 2; ctx.setLineDash([3, 18]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
   function draw(now) {
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#142019';
-    ctx.fillRect(0, 0, width, height);
-    const drift = (now * 0.012) % 34;
-    ctx.strokeStyle = '#d5f2c409';
-    ctx.lineWidth = 1;
-    for (let x = -34 + drift; x < width + 34; x += 34) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
-    }
-    for (let y = -34 + drift; y < height + 34; y += 34) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
-    }
-    ctx.strokeStyle = '#c8f16924';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(width / 2, height / 2, Math.min(width, height) * 0.33, 0, Math.PI * 2);
-    ctx.stroke();
+    drawTerrain();
 
     for (const gem of gems) {
       ctx.save();
-      ctx.translate(gem.x, gem.y);
+      ctx.translate(gem.x - camera.x, gem.y - camera.y);
       ctx.rotate(Math.sin(gem.phase) * 0.25);
       ctx.shadowColor = '#8cdbff';
       ctx.shadowBlur = 12;
@@ -443,7 +577,7 @@
       ctx.shadowColor = '#c8f169';
       ctx.shadowBlur = 16;
       ctx.fillStyle = '#e3ff96';
-      ctx.beginPath(); ctx.arc(shot.x, shot.y, shot.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(shot.x - camera.x, shot.y - camera.y, shot.radius, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
 
@@ -451,16 +585,18 @@
       ctx.save();
       ctx.shadowColor = enemy.boss ? '#ff725e' : '#db83ac';
       ctx.shadowBlur = enemy.boss ? 20 : 8;
+      const screenX = enemy.x - camera.x;
+      const screenY = enemy.y - camera.y;
       ctx.fillStyle = enemy.hitFlash > 0 ? '#ffffff' : enemy.boss ? '#f25e5e' : '#da8cb0';
-      ctx.beginPath(); ctx.arc(enemy.x, enemy.y, enemy.radius + (enemy.boss ? 2 : 0), 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(screenX, screenY, enemy.radius + (enemy.boss ? 2 : 0), 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
-      drawAvatar(enemy.x, enemy.y, enemy.radius - 2, emotes, enemy.emote, '👾');
+      drawAvatar(screenX, screenY, enemy.radius - 2, emotes, enemy.emote, '👾');
       ctx.strokeStyle = enemy.boss ? '#ff8069' : '#ffe7f0';
       ctx.lineWidth = enemy.boss ? 3 : 1.5;
-      ctx.beginPath(); ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(screenX, screenY, enemy.radius, 0, Math.PI * 2); ctx.stroke();
       if (enemy.boss) {
-        ctx.fillStyle = '#250e10'; ctx.fillRect(enemy.x - 23, enemy.y - enemy.radius - 11, 46, 4);
-        ctx.fillStyle = '#ff8069'; ctx.fillRect(enemy.x - 23, enemy.y - enemy.radius - 11, 46 * Math.max(0, enemy.hp / enemy.maxHp), 4);
+        ctx.fillStyle = '#250e10'; ctx.fillRect(screenX - 23, screenY - enemy.radius - 11, 46, 4);
+        ctx.fillStyle = '#ff8069'; ctx.fillRect(screenX - 23, screenY - enemy.radius - 11, 46 * Math.max(0, enemy.hp / enemy.maxHp), 4);
       }
       ctx.restore();
     }
@@ -468,7 +604,7 @@
     for (const particle of particles) {
       ctx.globalAlpha = Math.max(0, particle.life / particle.maxLife);
       ctx.fillStyle = particle.color;
-      ctx.beginPath(); ctx.arc(particle.x, particle.y, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(particle.x - camera.x, particle.y - camera.y, 2.6, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
 
@@ -477,12 +613,14 @@
     ctx.shadowColor = '#c8f169';
     ctx.shadowBlur = 20;
     ctx.fillStyle = '#c8f169';
-    ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 4, 0, Math.PI * 2); ctx.fill();
+    const playerScreenX = player.x - camera.x;
+    const playerScreenY = player.y - camera.y;
+    ctx.beginPath(); ctx.arc(playerScreenX, playerScreenY, player.radius + 4, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
-    drawAvatar(player.x, player.y, player.radius, avatar, 0, 'M');
+    drawAvatar(playerScreenX, playerScreenY, player.radius, avatar, 0, 'M');
     ctx.strokeStyle = '#ecffb6';
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(playerScreenX, playerScreenY, player.radius, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
 
