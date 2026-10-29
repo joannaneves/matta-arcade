@@ -1,19 +1,21 @@
 # Matta: ao vivo no caos
 
-Um mini arcade de navegador feito como homenagem de fã ao streamer Matta. Desvie dos obstáculos, pegue hype e atravesse três fases inspiradas em LoL, economia e debates ao vivo.
+Um jogo de sobrevivência em arena, feito como homenagem de fã ao streamer Matta. A horda vem atrás, o Matta ataca automaticamente e você escolhe melhorias ao coletar XP.
 
 **Jogue localmente:** abra `index.html` em um navegador moderno. Não há build, instalação ou dependências.
 
-O jogo usa o retrato e a folha de emotes enviados pelo criador. Os dois clipes de áudio ficam disponíveis no painel “Sons do chat” e só tocam quando alguém aperta um dos botões; os arquivos podem conter linguagem adulta.
+O jogo usa o retrato e a folha de emotes enviados pelo criador. A trilha “Ela Partiu” (Lofi remix) toca em loop a 12% de volume depois de iniciar a partida e pode ser silenciada. Os clipes do painel “Sons do chat” só tocam quando alguém aperta um botão; eles podem conter linguagem adulta.
 
 ## Controles
 
 - **WASD** ou **setas:** mover o personagem.
 - **Celular:** use os botões direcionais na barra abaixo do jogo.
-- **✦ Hype:** vale 10 pontos; sobreviver também aumenta o placar.
-- **Obstáculos:** três colisões encerram a rodada.
+- Mova o personagem com **WASD**, **setas** ou os botões direcionais no celular.
+- Os ataques automáticos miram o inimigo mais próximo.
+- Inimigos derrubados deixam cristais de XP. Cada nível oferece três melhorias para escolher.
+- Chefes aparecem periodicamente; sobreviva às ondas e tente bater seu recorde de tempo e abates.
 
-O recorde fica salvo localmente no navegador. O botão Compartilhar usa a função nativa do dispositivo ou copia o link. Os emotes aparecem como itens coletáveis, e a foto do Matta vira o personagem jogável.
+Os emotes aparecem como inimigos e cristais de experiência. A foto do Matta vira o personagem jogável. O botão Compartilhar usa a função nativa do dispositivo ou copia o link.
 
 ## Publicação
 
@@ -23,5 +25,5 @@ Na primeira publicação, selecione **GitHub Actions** em **Settings → Pages �
 
 ## Créditos
 
-Projeto independente feito por fã; não afiliado, patrocinado ou endossado pelo streamer, Twitch ou Riot Games. Os links sociais apontam para os perfis compartilhados pelo criador do jogo. A foto, os emotes e os clipes de áudio foram fornecidos pelo criador deste jogo.
+Projeto independente feito por fã; não afiliado, patrocinado ou endossado pelo streamer, Twitch ou Riot Games. Os links sociais apontam para os perfis compartilhados pelo criador do jogo. A foto, os emotes e os clipes de chat foram fornecidos pelo criador. A trilha é o arquivo fornecido pelo criador, identificado como “Tim Maia - Ela Partiu (Lofi remix) - GabrielMzero”.
 
