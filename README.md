@@ -1,6 +1,6 @@
 # Matta: ao vivo no caos
 
-Um jogo de sobrevivência em arena, feito como homenagem de fã ao streamer Matta. A horda vem atrás, o Matta ataca automaticamente e você escolhe melhorias ao coletar XP.
+Um jogo de sobrevivência em arena, criado por Joanna para o streamer Matta. Explore uma floresta sombria inspirada em mapas de MOBA, ataque automaticamente e escolha melhorias ao coletar XP.
 
 **Jogue localmente:** abra `index.html` em um navegador moderno. Não há build, instalação ou dependências.
 
@@ -13,10 +13,12 @@ O jogo usa o retrato e a folha de emotes enviados pelo criador. A trilha “Ela 
 - Explore o mapa verde contínuo: a câmera acompanha o Matta e não há bordas para bloquear o caminho.
 - Mova o personagem com **WASD**, **setas** ou os botões direcionais no celular.
 - Os ataques automáticos miram o inimigo mais próximo.
+- Orbes, espinhos perfurantes, brasas explosivas e ondas de choque alternam para manter o combate variado.
 - Inimigos derrubados deixam cristais de XP. Cada nível oferece três melhorias para escolher.
+- A horda ganha vida e pressão conforme os níveis avançam; corredores, tanques, brutamontes e chefes mudam o ritmo da luta.
 - Chefes aparecem periodicamente; sobreviva às ondas e tente bater seu recorde de tempo e abates.
 
-Os emotes aparecem como inimigos e cristais de experiência. A foto do Matta vira o personagem jogável. O cenário tem grama, trilhas de pedra, trechos de rio, arbustos e rochas, inspirado em mapas de MOBA. O botão Compartilhar usa a função nativa do dispositivo ou copia o link.
+Os emotes aparecem nos rostos dos monstros e nos cristais de experiência. A foto do Matta aparece no personagem jogável, equipado como aventureiro. O cenário sombrio tem grama, trilhas de pedra, trechos de rio, arbustos e rochas, inspirado em mapas de MOBA. O botão Compartilhar usa a função nativa do dispositivo ou copia o link.
 
 ## Publicação
 

@@ -31,6 +31,7 @@
   let spawnTimer = 0.5;
   let nextBoss = 55;
   let level = 1;
+  let nextEnemyId = 1;
   let xp = 0;
   let xpNeeded = 5;
   let kills = 0;
@@ -44,12 +45,13 @@
     x: 0, y: 0, radius: 23, speed: 225, health: 5, maxHealth: 5,
     invulnerable: 0, damage: 1, cooldown: 0.68, shotTimer: 0.2,
     projectileSpeed: 460, projectileCount: 1, pickupRadius: 43,
+    weaponCycle: 0, pulseTimer: 8, pulseVisual: 0,
   };
 
   const upgrades = [
-    { icon: '⚡', title: 'Hot take certeiro', detail: 'Ataques 20% mais rápidos.', apply: () => { player.cooldown = Math.max(0.24, player.cooldown * 0.8); } },
-    { icon: '💥', title: 'Argumento forte', detail: 'Seus ataques causam +1 de dano.', apply: () => { player.damage += 1; } },
-    { icon: '🎯', title: 'Foco no alvo', detail: 'Dispare mais um projétil por ataque.', apply: () => { player.projectileCount = Math.min(5, player.projectileCount + 1); } },
+    { icon: '⚡', title: 'Hot take certeiro', detail: 'Ataques 12% mais rápidos.', apply: () => { player.cooldown = Math.max(0.34, player.cooldown * 0.88); } },
+    { icon: '💥', title: 'Argumento forte', detail: 'Seus poderes causam +1 de dano.', apply: () => { player.damage = Math.min(5, player.damage + 1); } },
+    { icon: '🎯', title: 'Foco no alvo', detail: 'Dispare mais um projétil por ataque.', apply: () => { player.projectileCount = Math.min(4, player.projectileCount + 1); } },
     { icon: '🧲', title: 'Ímã de hype', detail: 'Colete XP de mais longe.', apply: () => { player.pickupRadius += 30; } },
     { icon: '💚', title: 'Pausa pra água', detail: 'Ganhe uma vida máxima e recupere 2.', apply: () => { player.maxHealth += 1; player.health = Math.min(player.maxHealth, player.health + 2); } },
     { icon: '👟', title: 'Rotação de mapa', detail: 'Mova-se 15% mais rápido.', apply: () => { player.speed *= 1.15; } },
@@ -128,6 +130,7 @@
     spawnTimer = 0.45;
     nextBoss = 55;
     level = 1;
+    nextEnemyId = 1;
     xp = 0;
     xpNeeded = 5;
     kills = 0;
@@ -150,6 +153,9 @@
     player.projectileSpeed = 460;
     player.projectileCount = 1;
     player.pickupRadius = 43;
+    player.weaponCycle = 0;
+    player.pulseTimer = 8;
+    player.pulseVisual = 0;
     $('#overlay').classList.add('hidden');
     $('#dialog').classList.remove('level-dialog');
     $('#choices').hidden = true;
@@ -185,18 +191,32 @@
   }
 
   function spawnEnemy(boss = false) {
-    if (!boss && enemies.length >= 85) return;
+    if (!boss && enemies.length >= 72) return;
     const side = Math.floor(Math.random() * 4);
     const margin = 20;
     const x = camera.x + (side === 0 ? margin : side === 1 ? width - margin : margin + Math.random() * (width - margin * 2));
     const y = camera.y + (side === 2 ? margin : side === 3 ? height - margin : margin + Math.random() * (height - margin * 2));
     const currentWave = Math.floor(runTime / 45) + 1;
-    const size = boss ? 32 : 17 + Math.random() * 4;
+    const pressure = Math.ceil((level - 1) * 0.7) + Math.floor(runTime / 55);
+    const roll = Math.random();
+    const type = boss ? 'boss'
+      : level >= 8 && roll > 0.89 ? 'brute'
+        : level >= 4 && roll > 0.7 ? 'tank'
+          : level >= 2 && roll > 0.43 ? 'runner' : 'minion';
+    const stats = {
+      minion: { radius: 16, hp: 2, speed: 49, color: '#8e6578' },
+      runner: { radius: 13, hp: 2, speed: 91, color: '#b16d62' },
+      tank: { radius: 22, hp: 6, speed: 34, color: '#718257' },
+      brute: { radius: 26, hp: 10, speed: 41, color: '#88544e' },
+      boss: { radius: 34, hp: 12, speed: 39, color: '#b6464f' },
+    }[type];
+    const hp = stats.hp + pressure * (type === 'runner' ? 1 : type === 'tank' || type === 'brute' ? 2 : 1);
+    const size = stats.radius + (type === 'boss' ? Math.min(pressure, 7) : 0);
     enemies.push({
-      x, y, radius: size, hp: boss ? 7 + currentWave * 2 : 2 + Math.floor(currentWave / 3),
-      maxHp: boss ? 7 + currentWave * 2 : 2 + Math.floor(currentWave / 3),
-      speed: boss ? 34 + currentWave * 2 : 37 + Math.random() * 17 + currentWave * 2,
-      boss, emote: Math.floor(Math.random() * 30), hitFlash: 0,
+      id: nextEnemyId++, x, y, radius: size, hp, maxHp: hp,
+      speed: stats.speed + currentWave * 1.5 + pressure * (type === 'runner' ? 2 : 0.8),
+      boss: type === 'boss', type, color: stats.color,
+      emote: Math.floor(Math.random() * 30), hitFlash: 0,
     });
   }
 
@@ -225,7 +245,7 @@
     $('#round').textContent = 'ESCOLHA UMA MELHORIA';
     $('#stamp').textContent = '⬆️';
     $('#dialogTitle').textContent = 'O chat evoluiu!';
-    $('#dialogCopy').textContent = 'Escolha uma melhoria para aguentar a próxima onda.';
+    $('#dialogCopy').textContent = 'Escolha uma melhoria: a horda também cresce em vida e novos monstros entram na arena a cada nível.';
     $('#dialog').classList.add('level-dialog');
     $('#start').hidden = true;
     const choices = $('#choices');
@@ -271,13 +291,45 @@
     const dx = target.x - player.x;
     const dy = target.y - player.y;
     const base = Math.atan2(dy, dx);
-    const spread = 0.13;
-    for (let i = 0; i < player.projectileCount; i += 1) {
-      const offset = (i - (player.projectileCount - 1) / 2) * spread;
+    const kinds = ['orb', 'thorn', 'ember'];
+    const kind = kinds[player.weaponCycle % kinds.length];
+    player.weaponCycle += 1;
+    const count = kind === 'thorn' ? Math.max(1, Math.ceil(player.projectileCount / 2)) : player.projectileCount;
+    const spread = kind === 'ember' ? 0.19 : 0.12;
+    for (let i = 0; i < count; i += 1) {
+      const offset = (i - (count - 1) / 2) * spread;
       const angle = base + offset;
-      shots.push({ x: player.x, y: player.y, vx: Math.cos(angle) * player.projectileSpeed, vy: Math.sin(angle) * player.projectileSpeed, radius: 6, damage: player.damage, life: 1.15 });
+      const speed = player.projectileSpeed * (kind === 'ember' ? 0.78 : 1);
+      shots.push({ x: player.x, y: player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        radius: kind === 'thorn' ? 7 : kind === 'ember' ? 9 : 6,
+        damage: player.damage + (kind === 'ember' ? 1 : 0), life: kind === 'ember' ? 1.4 : 1.1,
+        kind, pierce: kind === 'thorn' ? 2 : 0, splash: kind === 'ember' ? 58 : 0,
+        color: kind === 'thorn' ? '#8cf4dc' : kind === 'ember' ? '#ff845c' : '#d5f18a', hitIds: [], });
     }
-    tone(510, 0.045);
+    tone(kind === 'thorn' ? 720 : kind === 'ember' ? 330 : 510, 0.055);
+  }
+
+  function damageEnemy(enemy, amount) {
+    if (enemy.hp <= 0) return;
+    enemy.hp -= amount;
+    enemy.hitFlash = 0.12;
+    if (enemy.hp <= 0) {
+      kills += 1;
+      dropGem(enemy);
+      burst(enemy.x, enemy.y, enemy.boss ? '#ff956b' : enemy.color, enemy.boss ? 24 : 11);
+      if (enemy.boss) showToast('CHEFE DERRUBADO! +7 XP');
+    }
+  }
+
+  function useShockwave() {
+    player.pulseTimer = Math.max(6, 10 - Math.floor(level / 5));
+    player.pulseVisual = 0.48;
+    for (const enemy of enemies) {
+      if (Math.hypot(enemy.x - player.x, enemy.y - player.y) < 176) damageEnemy(enemy, 2 + Math.floor(level / 5));
+    }
+    burst(player.x, player.y, '#a3baff', 28);
+    showToast('ONDA DE CHOQUE!');
+    tone(190, 0.24);
   }
 
   function takeDamage() {
@@ -311,11 +363,14 @@
     player.y += (moveY / magnitude) * player.speed * dt;
     updateCamera();
     player.invulnerable = Math.max(0, player.invulnerable - dt);
+    player.pulseTimer -= dt;
+    player.pulseVisual = Math.max(0, player.pulseVisual - dt);
+    if (player.pulseTimer <= 0) useShockwave();
 
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
       spawnEnemy();
-      spawnTimer = Math.max(0.2, 0.88 - runTime * 0.006) * (0.74 + Math.random() * 0.55);
+      spawnTimer = Math.max(0.26, 0.88 - runTime * 0.005 - (level - 1) * 0.018) * (0.72 + Math.random() * 0.5);
     }
     if (runTime >= nextBoss) {
       spawnEnemy(true);
@@ -331,7 +386,7 @@
       enemy.x += (dx / distance) * enemy.speed * dt;
       enemy.y += (dy / distance) * enemy.speed * dt;
       enemy.hitFlash = Math.max(0, enemy.hitFlash - dt);
-      if (distance < player.radius + enemy.radius * 0.72) takeDamage();
+      if (distance < player.radius * 0.66 + enemy.radius * 0.58) takeDamage();
       if (!running) return;
     }
 
@@ -346,19 +401,19 @@
       shot.y += shot.vy * dt;
       shot.life -= dt;
       for (const enemy of enemies) {
-        if (enemy.hp <= 0) continue;
-        if (Math.hypot(shot.x - enemy.x, shot.y - enemy.y) < shot.radius + enemy.radius * 0.75) {
-          enemy.hp -= shot.damage;
-          enemy.hitFlash = 0.12;
-          shot.life = 0;
-          burst(shot.x, shot.y, '#c8f169', 4);
-          if (enemy.hp <= 0) {
-            kills += 1;
-            dropGem(enemy);
-            burst(enemy.x, enemy.y, enemy.boss ? '#ff956b' : '#9bce79', enemy.boss ? 22 : 9);
-            if (enemy.boss) showToast('CHEFE DERRUBADO! +7 XP');
+        if (shot.life <= 0) break;
+        if (enemy.hp <= 0 || shot.hitIds.includes(enemy.id)) continue;
+        if (Math.hypot(shot.x - enemy.x, shot.y - enemy.y) < shot.radius + enemy.radius * 0.58) {
+          shot.hitIds.push(enemy.id);
+          damageEnemy(enemy, shot.damage);
+          if (shot.splash) {
+            for (const nearby of enemies) {
+              if (nearby !== enemy && Math.hypot(nearby.x - enemy.x, nearby.y - enemy.y) < shot.splash) damageEnemy(nearby, Math.max(1, shot.damage - 1));
+            }
           }
-          break;
+          burst(shot.x, shot.y, shot.color, shot.kind === 'ember' ? 9 : 4);
+          if (shot.pierce > 0) shot.pierce -= 1;
+          else shot.life = 0;
         }
       }
     }
@@ -424,6 +479,65 @@
     ctx.restore();
   }
 
+  function drawCreature(enemy, x, y, now) {
+    const r = enemy.radius;
+    const stride = Math.sin(now * 0.008 + enemy.id) * r * 0.08;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#07100dd0';
+    ctx.beginPath(); ctx.ellipse(0, r * 0.78, r * 0.94, r * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = enemy.hitFlash > 0 ? '#fff4df' : '#211a1b';
+    ctx.lineCap = 'round'; ctx.lineWidth = Math.max(4, r * 0.23);
+    ctx.beginPath(); ctx.moveTo(-r * 0.28, r * 0.34); ctx.lineTo(-r * 0.4 + stride, r * 0.78); ctx.moveTo(r * 0.26, r * 0.34); ctx.lineTo(r * 0.39 - stride, r * 0.78); ctx.stroke();
+    ctx.strokeStyle = enemy.hitFlash > 0 ? '#fff4df' : enemy.color;
+    ctx.lineWidth = Math.max(5, r * 0.27);
+    ctx.beginPath(); ctx.moveTo(-r * 0.42, -r * 0.08); ctx.lineTo(-r * 0.78, r * 0.28); ctx.moveTo(r * 0.42, -r * 0.08); ctx.lineTo(r * 0.74, r * 0.27); ctx.stroke();
+    ctx.fillStyle = enemy.hitFlash > 0 ? '#fff4df' : enemy.color;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.55, r * 0.28); ctx.lineTo(-r * 0.52, -r * 0.23); ctx.lineTo(-r * 0.29, -r * 0.49);
+    ctx.lineTo(r * 0.15, -r * 0.52); ctx.lineTo(r * 0.53, -r * 0.2); ctx.lineTo(r * 0.5, r * 0.31);
+    ctx.lineTo(r * 0.2, r * 0.53); ctx.lineTo(-r * 0.3, r * 0.49); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2b2022';
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.25, r * 0.43, r * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+    if (enemy.type === 'runner' || enemy.boss || enemy.type === 'brute') {
+      ctx.fillStyle = '#c8b98b';
+      ctx.beginPath(); ctx.moveTo(-r * 0.34, -r * 0.42); ctx.lineTo(-r * 0.55, -r * 0.94); ctx.lineTo(-r * 0.08, -r * 0.59); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(r * 0.26, -r * 0.45); ctx.lineTo(r * 0.55, -r * 0.9); ctx.lineTo(r * 0.53, -r * 0.28); ctx.fill();
+    }
+    if (enemy.type === 'tank' || enemy.type === 'brute' || enemy.boss) {
+      ctx.fillStyle = enemy.boss ? '#48343b' : '#383d32';
+      ctx.beginPath(); ctx.moveTo(-r * 0.45, -r * 0.03); ctx.lineTo(-r * 0.24, -r * 0.39); ctx.lineTo(r * 0.2, -r * 0.4); ctx.lineTo(r * 0.48, -r * 0.02); ctx.lineTo(r * 0.36, r * 0.35); ctx.lineTo(-r * 0.35, r * 0.35); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = enemy.boss ? '#d18c78' : '#9a9a72'; ctx.lineWidth = Math.max(1.5, r * 0.07); ctx.stroke();
+    }
+    drawAvatar(0, -r * 0.25, r * 0.32, emotes, enemy.emote, '👾');
+    ctx.fillStyle = enemy.boss ? '#ffcd67' : '#f6d88a';
+    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = enemy.boss ? 12 : 5;
+    ctx.beginPath(); ctx.ellipse(-r * 0.14, -r * 0.27, r * 0.055, r * 0.075, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * 0.14, -r * 0.27, r * 0.055, r * 0.075, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHero(x, y, now) {
+    const stride = Math.sin(now * 0.012) * 3;
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = '#050b0acc';
+    ctx.beginPath(); ctx.ellipse(0, 22, 25, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d7d4c7'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-7, 9); ctx.lineTo(-10 + stride, 23); ctx.moveTo(7, 9); ctx.lineTo(10 - stride, 23); ctx.stroke();
+    ctx.fillStyle = '#283139'; ctx.beginPath(); ctx.moveTo(-12, -8); ctx.lineTo(-18, 13); ctx.lineTo(-11, 18); ctx.lineTo(0, 12); ctx.lineTo(12, 18); ctx.lineTo(19, 9); ctx.lineTo(11, -9); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#bd8e62'; ctx.beginPath(); ctx.ellipse(0, -4, 16, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d6c5a4'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(-12, -6); ctx.lineTo(-21, 3); ctx.moveTo(12, -6); ctx.lineTo(21, 1); ctx.stroke();
+    ctx.strokeStyle = '#83d5ad'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(20, 4); ctx.lineTo(29, -16); ctx.stroke();
+    ctx.fillStyle = '#a8f4db'; ctx.shadowColor = '#7fffd0'; ctx.shadowBlur = 13;
+    ctx.beginPath(); ctx.moveTo(29, -20); ctx.lineTo(35, -12); ctx.lineTo(29, -4); ctx.lineTo(24, -12); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    drawAvatar(0, -19, 13, avatar, 0, 'M');
+    ctx.strokeStyle = '#f1e6c5'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, -5, 25, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
   function randomFor(seed) {
     let value = seed >>> 0;
     return () => {
@@ -485,7 +599,7 @@
     const bottom = Math.ceil((camera.y + height) / tileSize) + 1;
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
-    ctx.fillStyle = '#2b6138';
+    ctx.fillStyle = '#1b352b';
     ctx.fillRect(camera.x, camera.y, width, height);
 
     for (let tileY = top; tileY <= bottom; tileY += 1) {
@@ -494,14 +608,14 @@
         const random = randomFor(seed);
         const originX = tileX * tileSize;
         const originY = tileY * tileSize;
-        ctx.fillStyle = random() > 0.5 ? '#4d79402c' : '#183f2a20';
+        ctx.fillStyle = random() > 0.5 ? '#5d704225' : '#081d1748';
         ctx.beginPath();
         ctx.ellipse(originX + random() * tileSize, originY + random() * tileSize, 65 + random() * 85, 36 + random() * 48, random() * Math.PI, 0, Math.PI * 2);
         ctx.fill();
         for (let tuft = 0; tuft < 12; tuft += 1) {
           const x = originX + random() * tileSize;
           const y = originY + random() * tileSize;
-          ctx.strokeStyle = tuft % 2 ? '#80a65258' : '#bfd07a36';
+          ctx.strokeStyle = tuft % 2 ? '#8ca06b45' : '#b3b98825';
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(x, y + 3); ctx.lineTo(x + 2, y - 3); ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + 4, y - 1); ctx.stroke();
         }
@@ -527,10 +641,10 @@
         if (x === startX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#183c2f'; ctx.lineWidth = 78; ctx.stroke();
-      ctx.strokeStyle = '#706f4c'; ctx.lineWidth = 67; ctx.stroke();
-      ctx.strokeStyle = '#9a9163'; ctx.lineWidth = 50; ctx.stroke();
-      ctx.strokeStyle = '#c2b47a55'; ctx.lineWidth = 2; ctx.setLineDash([4, 16]); ctx.stroke();
+      ctx.strokeStyle = '#0d211d'; ctx.lineWidth = 78; ctx.stroke();
+      ctx.strokeStyle = '#414638'; ctx.lineWidth = 67; ctx.stroke();
+      ctx.strokeStyle = '#676247'; ctx.lineWidth = 50; ctx.stroke();
+      ctx.strokeStyle = '#aa9b6b45'; ctx.lineWidth = 2; ctx.setLineDash([4, 16]); ctx.stroke();
       ctx.setLineDash([]);
     }
 
@@ -547,12 +661,18 @@
         if (x === startX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = '#183e386b'; ctx.lineWidth = 78; ctx.stroke();
-      ctx.strokeStyle = '#367a696e'; ctx.lineWidth = 62; ctx.stroke();
-      ctx.strokeStyle = '#78a9825e'; ctx.lineWidth = 2; ctx.setLineDash([3, 18]); ctx.stroke();
+      ctx.strokeStyle = '#0b202080'; ctx.lineWidth = 78; ctx.stroke();
+      ctx.strokeStyle = '#28534d85'; ctx.lineWidth = 62; ctx.stroke();
+      ctx.strokeStyle = '#78a98245'; ctx.lineWidth = 2; ctx.setLineDash([3, 18]); ctx.stroke();
       ctx.setLineDash([]);
     }
     ctx.restore();
+    const vignette = ctx.createRadialGradient(width * 0.5, height * 0.52, Math.min(width, height) * 0.12, width * 0.5, height * 0.52, Math.max(width, height) * 0.72);
+    vignette.addColorStop(0, '#04090800');
+    vignette.addColorStop(0.68, '#04090828');
+    vignette.addColorStop(1, '#020605a8');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
   }
 
   function draw(now) {
@@ -574,31 +694,37 @@
 
     for (const shot of shots) {
       ctx.save();
-      ctx.shadowColor = '#c8f169';
-      ctx.shadowBlur = 16;
-      ctx.fillStyle = '#e3ff96';
-      ctx.beginPath(); ctx.arc(shot.x - camera.x, shot.y - camera.y, shot.radius, 0, Math.PI * 2); ctx.fill();
+      const sx = shot.x - camera.x;
+      const sy = shot.y - camera.y;
+      ctx.shadowColor = shot.color;
+      ctx.shadowBlur = shot.kind === 'ember' ? 21 : 14;
+      ctx.fillStyle = shot.color;
+      if (shot.kind === 'thorn') {
+        ctx.translate(sx, sy); ctx.rotate(Math.atan2(shot.vy, shot.vx));
+        ctx.beginPath(); ctx.moveTo(shot.radius * 1.8, 0); ctx.lineTo(-shot.radius, -shot.radius * 0.55); ctx.lineTo(-shot.radius * 0.5, 0); ctx.lineTo(-shot.radius, shot.radius * 0.55); ctx.closePath(); ctx.fill();
+      } else if (shot.kind === 'ember') {
+        ctx.beginPath(); ctx.ellipse(sx, sy, shot.radius * 1.35, shot.radius * 0.8, Math.atan2(shot.vy, shot.vx), 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.arc(sx - shot.vx * 0.025, sy - shot.vy * 0.025, shot.radius * 0.8, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(sx, sy, shot.radius, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
     }
 
     for (const enemy of enemies) {
-      ctx.save();
-      ctx.shadowColor = enemy.boss ? '#ff725e' : '#db83ac';
-      ctx.shadowBlur = enemy.boss ? 20 : 8;
       const screenX = enemy.x - camera.x;
       const screenY = enemy.y - camera.y;
-      ctx.fillStyle = enemy.hitFlash > 0 ? '#ffffff' : enemy.boss ? '#f25e5e' : '#da8cb0';
-      ctx.beginPath(); ctx.arc(screenX, screenY, enemy.radius + (enemy.boss ? 2 : 0), 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
-      drawAvatar(screenX, screenY, enemy.radius - 2, emotes, enemy.emote, '👾');
-      ctx.strokeStyle = enemy.boss ? '#ff8069' : '#ffe7f0';
-      ctx.lineWidth = enemy.boss ? 3 : 1.5;
-      ctx.beginPath(); ctx.arc(screenX, screenY, enemy.radius, 0, Math.PI * 2); ctx.stroke();
+      drawCreature(enemy, screenX, screenY, now);
+      if (enemy.type !== 'minion' && !enemy.boss) {
+        const barWidth = enemy.radius * 1.65;
+        ctx.fillStyle = '#080b0b'; ctx.fillRect(screenX - barWidth / 2, screenY - enemy.radius - 9, barWidth, 3);
+        ctx.fillStyle = enemy.type === 'runner' ? '#e1a07b' : '#b9bd80';
+        ctx.fillRect(screenX - barWidth / 2, screenY - enemy.radius - 9, barWidth * Math.max(0, enemy.hp / enemy.maxHp), 3);
+      }
       if (enemy.boss) {
         ctx.fillStyle = '#250e10'; ctx.fillRect(screenX - 23, screenY - enemy.radius - 11, 46, 4);
         ctx.fillStyle = '#ff8069'; ctx.fillRect(screenX - 23, screenY - enemy.radius - 11, 46 * Math.max(0, enemy.hp / enemy.maxHp), 4);
       }
-      ctx.restore();
     }
 
     for (const particle of particles) {
@@ -610,17 +736,14 @@
 
     ctx.save();
     if (player.invulnerable > 0 && Math.floor(now / 80) % 2) ctx.globalAlpha = 0.35;
-    ctx.shadowColor = '#c8f169';
-    ctx.shadowBlur = 20;
-    ctx.fillStyle = '#c8f169';
     const playerScreenX = player.x - camera.x;
     const playerScreenY = player.y - camera.y;
-    ctx.beginPath(); ctx.arc(playerScreenX, playerScreenY, player.radius + 4, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
-    drawAvatar(playerScreenX, playerScreenY, player.radius, avatar, 0, 'M');
-    ctx.strokeStyle = '#ecffb6';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(playerScreenX, playerScreenY, player.radius, 0, Math.PI * 2); ctx.stroke();
+    if (player.pulseVisual > 0) {
+      ctx.strokeStyle = `rgba(160, 190, 255, ${player.pulseVisual * 1.6})`;
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(playerScreenX, playerScreenY, 176 * (1 - player.pulseVisual / 0.48), 0, Math.PI * 2); ctx.stroke();
+    }
+    drawHero(playerScreenX, playerScreenY, now);
     ctx.restore();
   }
 
