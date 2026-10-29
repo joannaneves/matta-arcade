@@ -4,6 +4,8 @@ Um mini arcade de navegador feito como homenagem de fã ao streamer Matta. Desvi
 
 **Jogue localmente:** abra `index.html` em um navegador moderno. Não há build, instalação ou dependências.
 
+O jogo usa o retrato e a folha de emotes enviados pelo criador. Os dois clipes de áudio ficam disponíveis no painel “Sons do chat” e só tocam quando alguém aperta um dos botões; os arquivos podem conter linguagem adulta.
+
 ## Controles
 
 - **WASD** ou **setas:** mover o personagem.
@@ -11,7 +13,7 @@ Um mini arcade de navegador feito como homenagem de fã ao streamer Matta. Desvi
 - **✦ Hype:** vale 10 pontos; sobreviver também aumenta o placar.
 - **Obstáculos:** três colisões encerram a rodada.
 
-O recorde fica salvo localmente no navegador. O botão Compartilhar usa a função nativa do dispositivo ou copia o link.
+O recorde fica salvo localmente no navegador. O botão Compartilhar usa a função nativa do dispositivo ou copia o link. Os emotes aparecem como itens coletáveis, e a foto do Matta vira o personagem jogável.
 
 ## Publicação
 
@@ -21,5 +23,5 @@ Na primeira publicação, selecione **GitHub Actions** em **Settings → Pages �
 
 ## Créditos
 
-Projeto independente feito por fã; não afiliado, patrocinado ou endossado pelo streamer, Twitch ou Riot Games. Os links sociais apontam para os perfis compartilhados pelo criador do jogo. O avatar, a arte e os efeitos são originais ou desenhados com emoji e formas do navegador.
+Projeto independente feito por fã; não afiliado, patrocinado ou endossado pelo streamer, Twitch ou Riot Games. Os links sociais apontam para os perfis compartilhados pelo criador do jogo. A foto, os emotes e os clipes de áudio foram fornecidos pelo criador deste jogo.
 
